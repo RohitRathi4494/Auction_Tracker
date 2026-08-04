@@ -7,10 +7,20 @@ import PlayerCard from '@/components/PlayerCard';
 import PlayerModal from '@/components/PlayerModal';
 import { Search, Filter, X, Gavel, BarChart3, Users, Trophy } from 'lucide-react';
 
+import { deriveTier, deriveAgeBracket } from '@/lib/import';
+
 const ROLES = [
   'Batsman', 'Batting Allrounder', 'Spin Bowling Allrounder', 'Fast Bowling Allrounder',
   'Leg Spin Bowler', 'Off Spin Bowler', 'Medium Pacer', 'Fast Bowler', 'Wicket Keeper Batsman',
 ];
+
+const normalizePlayer = (p: Player): Player => {
+  const raw = p.rawCategory || '';
+  const record = p as unknown as Record<string, unknown>;
+  const tier = p.tier || deriveTier(raw, record);
+  const ageBracket = p.ageBracket || deriveAgeBracket(raw, p.age, record);
+  return { ...p, tier, ageBracket };
+};
 
 export default function DirectoryPage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -29,12 +39,13 @@ export default function DirectoryPage() {
         const res = await fetch('/api/players');
         const data = await res.json();
         if (data.success && data.players?.length > 0) {
-          setPlayers(data.players);
+          setPlayers(data.players.map(normalizePlayer));
           return;
         }
         // Fallback to client SDK if API route returns no players
         const snap = await getDocs(query(collection(db, 'players'), orderBy('fullName')));
-        setPlayers(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Player)));
+        const loaded = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Player));
+        setPlayers(loaded.map(normalizePlayer));
       } catch (e) {
         console.error('Failed to load players:', e);
       } finally {

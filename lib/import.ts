@@ -1,12 +1,50 @@
 import { Player, Team, Tier, AgeBracket } from '@/types';
 
 // ─── Category derivation ─────────────────────────────────────────────────────
-export function deriveTier(rawCategory: string): Tier {
-  return rawCategory.endsWith('A') ? 'A' : 'B';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function deriveTier(rawCategory: string, row: Record<string, any> = {}): Tier {
+  const str = String(
+    rawCategory ||
+    row.category || row.Category || row.CATEGORY ||
+    row.tier || row.Tier || row.TIER || ''
+  ).trim().toUpperCase();
+
+  if (
+    str === 'A' ||
+    str.endsWith(' A') ||
+    str.endsWith('-A') ||
+    str.endsWith('_A') ||
+    str.endsWith('A') ||
+    str.includes('CAT A') ||
+    str.includes('CATEGORY A')
+  ) {
+    return 'A';
+  }
+  return 'B';
 }
 
-export function deriveAgeBracket(rawCategory: string): AgeBracket {
-  return rawCategory.startsWith('U35') ? 'under_35' : 'above_35';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function deriveAgeBracket(rawCategory: string, age?: number, row: Record<string, any> = {}): AgeBracket {
+  const str = String(
+    rawCategory ||
+    row.category || row.Category || row.CATEGORY ||
+    row.ageBracket || row['Age Bracket'] || ''
+  ).trim().toUpperCase();
+
+  const numAge = typeof age === 'number' && !isNaN(age) ? age : parseFloat(String(row.age || ''));
+
+  if (
+    str.includes('U35') ||
+    str.includes('UNDER 35') ||
+    str.includes('UNDER-35') ||
+    str.includes('U-35') ||
+    str.includes('<35') ||
+    str.startsWith('U') ||
+    (!isNaN(numAge) && numAge > 0 && numAge < 35)
+  ) {
+    return 'under_35';
+  }
+  return 'above_35';
 }
 
 export function deriveBasePrice(tier: Tier): number {
@@ -37,29 +75,31 @@ function safeInt(val: any): number | undefined {
   return isNaN(n) ? undefined : n;
 }
 
-// ─── Parse "Best Bowling" — stored as a number like 46082 meaning "4/60" (4 wkts, 82 runs encoded) ──
-// CricHeroes encodes best bowling as: wickets * 10000 + runs (e.g. 46082 = 4 wkts / 82 runs... or it might just be a raw number)
-// We'll store it as a string "4/82" for display
+// ─── Parse "Best Bowling" ──────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseBestBowling(val: any): string | undefined {
   if (!val) return undefined;
   const str = String(val).trim();
-  // If it already looks like "4/82" format, return as-is
   if (str.includes('/')) return str;
-  // If it's a raw number like 46082: first digit(s) = wickets, remaining = runs
-  // But this encoding isn't standard — store as raw string for safety
   return str;
 }
 
 // ─── Map Excel row → Player object ───────────────────────────────────────────
-// The full SSCL registration Excel has 48 columns with complete CricHeroes stats.
-// Columns I–AV contain batting, bowling, fielding stats scraped from CricHeroes.
-// We import them all here so the app never needs to re-scrape.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapRowToPlayer(row: Record<string, any>, index: number): Omit<Player, 'id'> {
-  const rawCategory = String(row.category || '');
-  const tier = deriveTier(rawCategory);
-  const ageBracket = deriveAgeBracket(rawCategory);
+  const rawCategory = String(
+    row.category ??
+    row.Category ??
+    row.CATEGORY ??
+    row['Category'] ??
+    row['category'] ??
+    row.tier ??
+    row.Tier ??
+    ''
+  ).trim();
+  const playerAge = parseFloat(String(row.age ?? row.Age ?? 0)) || 0;
+  const tier = deriveTier(rawCategory, row);
+  const ageBracket = deriveAgeBracket(rawCategory, playerAge, row);
 
   // ── Batting stats (from Excel columns I–W) ────────────────────────────────
   const battingMatches  = safeInt(row['batting_matches']);
