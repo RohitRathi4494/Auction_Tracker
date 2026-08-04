@@ -1,0 +1,12 @@
+node_modules
+.next
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+*.xlsx
