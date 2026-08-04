@@ -146,7 +146,10 @@ export default function AuctionConsolePage() {
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-white/8 bg-[oklch(0.12_0.01_250)]/95 backdrop-blur-xl">
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <a href="/admin/import" className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 px-3 py-1.5 rounded-lg transition-colors">
+              Import Data
+            </a>
             <a href="/admin/users" className="text-xs font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 px-3 py-1.5 rounded-lg transition-colors">
               Manage Users
             </a>

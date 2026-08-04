@@ -71,9 +71,18 @@ export default function DirectoryPage() {
               <p className="text-[10px] text-zinc-500 leading-none mt-0.5">Player Directory</p>
             </div>
           </div>
-          <nav className="flex gap-1 ml-4">
+          <nav className="flex items-center gap-1 ml-4">
             <a href="/directory" className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-300 font-medium">Directory</a>
-            <a href="/auction" className="text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:bg-white/8 hover:text-white transition-colors">Auction</a>
+            <div className="h-4 w-px bg-white/10 mx-2" />
+            <a href="/auction" className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-amber-400 hover:bg-amber-500/10 transition-colors">
+              <Gavel className="w-3.5 h-3.5" /> Auction Console
+            </a>
+            <a href="/admin/import" className="text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+              Import Data
+            </a>
+            <a href="/admin/users" className="text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
+              Manage Users
+            </a>
           </nav>
         </div>
       </header>
