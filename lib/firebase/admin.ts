@@ -18,11 +18,17 @@ function getAdminApp(): App {
     throw new Error('FIREBASE_ADMIN_PRIVATE_KEY is not set. Please configure .env.local');
   }
 
+  // Aggressively clean the private key (Vercel copy-paste often adds quotes or escapes newlines)
+  let cleanKey = privateKey
+    .replace(/\\n/g, '\n') // Fix escaped newlines
+    .replace(/(^"|"$)/g, '') // Remove surrounding quotes if accidentally copied
+    .replace(/(^'|'$)/g, ''); // Remove surrounding single quotes
+
   _app = initializeApp({
     credential: cert({
       projectId: process.env.FIREBASE_ADMIN_PROJECT_ID!,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL!,
-      privateKey: privateKey.replace(/\\n/g, '\n'),
+      privateKey: cleanKey,
     }),
   });
   return _app;
