@@ -12,10 +12,6 @@ import {
 } from 'lucide-react';
 
 export default function AuctionConsolePage() {
-  const [authed, setAuthed] = useState(false);
-  const [password, setPassword] = useState('');
-  const [authError, setAuthError] = useState('');
-
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [auctionState, setAuctionState] = useState<AuctionState | null>(null);
@@ -29,23 +25,8 @@ export default function AuctionConsolePage() {
   const [tiebreakerBids, setTiebreakerBids] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
-  // Auth check
-  const handleLogin = async () => {
-    const res = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    });
-    if (res.ok) {
-      setAuthed(true);
-    } else {
-      setAuthError('Incorrect password');
-    }
-  };
-
   // Load initial data
   useEffect(() => {
-    if (!authed) return;
     const loadData = async () => {
       const [psSnap, tsSnap] = await Promise.all([
         getDocs(query(collection(db, 'players'), orderBy('fullName'))),
@@ -55,26 +36,24 @@ export default function AuctionConsolePage() {
       setTeams(tsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Team)));
     };
     loadData();
-  }, [authed]);
+  }, []);
 
   // Realtime auction state
   useEffect(() => {
-    if (!authed) return;
     const unsub = onSnapshot(doc(db, 'auction', 'state'), (snap) => {
       if (snap.exists()) setAuctionState(snap.data() as AuctionState);
     });
     return unsub;
-  }, [authed]);
+  }, []);
 
   // Realtime auction log
   useEffect(() => {
-    if (!authed) return;
     const unsub = onSnapshot(
       query(collection(db, 'auctionLog'), orderBy('timestamp', 'desc'), limit(20)),
-      (snap) => setAuctionLog(snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuctionLogEntry))),
+      (snap) => setAuctionLog(snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuctionLogEntry)))
     );
     return unsub;
-  }, [authed]);
+  }, []);
 
   // Sync current player when auction state changes
   useEffect(() => {
@@ -161,39 +140,6 @@ export default function AuctionConsolePage() {
   );
 
   const increment = currentPlayer ? getBidIncrement(currentPlayer) : 5000;
-
-  if (!authed) {
-    return (
-      <div className="min-h-screen bg-[oklch(0.12_0.01_250)] flex items-center justify-center p-4">
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
-              <Gavel className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white">Auction Console</h1>
-            <p className="text-zinc-500 text-sm mt-1">Admin access required</p>
-          </div>
-          <div className="bg-white/4 border border-white/8 rounded-2xl p-6 space-y-4">
-            <input
-              type="password"
-              placeholder="Admin password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-              className="w-full px-4 py-3 rounded-xl bg-white/6 border border-white/10 text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 text-sm"
-            />
-            {authError && <p className="text-rose-400 text-sm">{authError}</p>}
-            <button
-              onClick={handleLogin}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 text-white font-semibold hover:opacity-90 transition-opacity"
-            >
-              Sign In
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[oklch(0.12_0.01_250)]">
