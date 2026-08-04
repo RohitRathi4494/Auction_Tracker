@@ -28,12 +28,20 @@ export default function AuctionConsolePage() {
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
-      const [psSnap, tsSnap] = await Promise.all([
-        getDocs(query(collection(db, 'players'), orderBy('fullName'))),
-        getDocs(collection(db, 'teams')),
-      ]);
-      setPlayers(psSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Player)));
-      setTeams(tsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Team)));
+      try {
+        const [pRes, tRes] = await Promise.all([fetch('/api/players'), fetch('/api/teams')]);
+        const [pData, tData] = await Promise.all([pRes.json(), tRes.json()]);
+        if (pData.success && pData.players) setPlayers(pData.players);
+        if (tData.success && tData.teams) setTeams(tData.teams);
+      } catch (e) {
+        console.error('API load failed, falling back to client SDK:', e);
+        const [psSnap, tsSnap] = await Promise.all([
+          getDocs(query(collection(db, 'players'), orderBy('fullName'))),
+          getDocs(collection(db, 'teams')),
+        ]);
+        setPlayers(psSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Player)));
+        setTeams(tsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Team)));
+      }
     };
     loadData();
   }, []);

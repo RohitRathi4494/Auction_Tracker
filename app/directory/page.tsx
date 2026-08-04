@@ -26,10 +26,17 @@ export default function DirectoryPage() {
   useEffect(() => {
     const load = async () => {
       try {
+        const res = await fetch('/api/players');
+        const data = await res.json();
+        if (data.success && data.players?.length > 0) {
+          setPlayers(data.players);
+          return;
+        }
+        // Fallback to client SDK if API route returns no players
         const snap = await getDocs(query(collection(db, 'players'), orderBy('fullName')));
         setPlayers(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Player)));
       } catch (e) {
-        console.error(e);
+        console.error('Failed to load players:', e);
       } finally {
         setLoading(false);
       }
