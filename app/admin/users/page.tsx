@@ -1,11 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
 import { Team, User } from '@/types';
 import {
   Users, UserPlus, Trash2, Loader2, AlertCircle, Shield,
-  CheckCircle, ArrowLeft, Database, KeyRound, X, Eye, EyeOff
+  CheckCircle, ArrowLeft, Database, KeyRound, X, Eye, EyeOff, Edit
 } from 'lucide-react';
 
 export default function UsersAdminPage() {
@@ -29,12 +27,24 @@ export default function UsersAdminPage() {
   const [resetError, setResetError] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
 
+  // Edit team modal state
+  const [editTarget, setEditTarget] = useState<User | null>(null);
+  const [editTeamId, setEditTeamId] = useState<string>('');
+  const [updatingTeam, setUpdatingTeam] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [editSuccess, setEditSuccess] = useState('');
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const teamsSnap = await getDocs(query(collection(db, 'teams'), orderBy('name')));
-      setTeams(teamsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Team)));
+      // Fetch teams via server route to bypass Firestore client SDK rules
+      const teamsRes = await fetch('/api/teams');
+      const teamsData = await teamsRes.json();
+      if (teamsData.success) {
+        setTeams(teamsData.teams);
+      }
 
+      // Fetch users
       const res = await fetch('/api/admin/users');
       const data = await res.json();
       if (data.success) setUsers(data.users);
@@ -105,12 +115,48 @@ export default function UsersAdminPage() {
     finally { setResetting(false); }
   };
 
+  const handleUpdateTeam = async () => {
+    if (!editTarget) return;
+    setUpdatingTeam(true);
+    setEditError('');
+    setEditSuccess('');
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: editTarget.username, teamId: editTeamId || null }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEditSuccess(`Team for "${editTarget.username}" updated!`);
+        fetchData();
+      } else {
+        setEditError(data.error || 'Failed to update team');
+      }
+    } catch { setEditError('Network error'); }
+    finally { setUpdatingTeam(false); }
+  };
+
   const closeResetModal = () => {
     setResetTarget(null);
     setResetPassword('');
     setResetError('');
     setResetSuccess('');
     setShowResetPw(false);
+  };
+
+  const openEditModal = (user: User) => {
+    setEditTarget(user);
+    setEditTeamId(user.teamId || '');
+    setEditError('');
+    setEditSuccess('');
+  };
+
+  const closeEditModal = () => {
+    setEditTarget(null);
+    setEditTeamId('');
+    setEditError('');
+    setEditSuccess('');
   };
 
   if (loading) {
@@ -148,7 +194,7 @@ export default function UsersAdminPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-white">User Management</h1>
-            <p className="text-xs text-zinc-400">Create credentials and reset passwords for team owners</p>
+            <p className="text-xs text-zinc-400">Create credentials, edit teams, and reset passwords for team owners</p>
           </div>
         </div>
 
@@ -234,6 +280,14 @@ export default function UsersAdminPage() {
                     {u.role !== 'admin' && (
                       <div className="flex items-center gap-1">
                         <button
+                          onClick={() => openEditModal(u)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                          title="Edit Team Assignment"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Edit Team</span>
+                        </button>
+                        <button
                           onClick={() => setResetTarget(u)}
                           className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
                           title="Reset Password"
@@ -257,6 +311,69 @@ export default function UsersAdminPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Team Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-[oklch(0.16_0.01_250)] border border-white/12 rounded-2xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-base font-bold text-white">Assign / Edit Team</h3>
+                <p className="text-xs text-zinc-400 mt-0.5">For user: <span className="text-white font-mono">{editTarget.username}</span></p>
+              </div>
+              <button onClick={closeEditModal} className="p-1.5 text-zinc-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1.5">Select Team</label>
+                <select
+                  value={editTeamId}
+                  onChange={(e) => setEditTeamId(e.target.value)}
+                  className="w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 transition-all"
+                >
+                  <option value="">-- No Team (Spectator) --</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {editError && (
+                <div className="flex items-center gap-1.5 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {editError}
+                </div>
+              )}
+              {editSuccess && (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg">
+                  <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" /> {editSuccess}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={closeEditModal}
+                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-zinc-400 hover:text-white hover:bg-white/8 text-sm transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateTeam}
+                  disabled={updatingTeam}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold disabled:opacity-50 hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                >
+                  {updatingTeam ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit className="w-4 h-4" />}
+                  {updatingTeam ? 'Saving…' : 'Save Team'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reset Password Modal */}
       {resetTarget && (

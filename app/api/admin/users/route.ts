@@ -88,17 +88,13 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
-// PATCH — admin resets a user's password
+// PATCH — admin resets password or updates assigned team
 export async function PATCH(req: NextRequest) {
   try {
-    const { username, newPassword } = await req.json();
+    const { username, newPassword, teamId } = await req.json();
 
-    if (!username || !newPassword) {
-      return NextResponse.json({ error: 'Username and new password are required' }, { status: 400 });
-    }
-
-    if (newPassword.length < 6) {
-      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+    if (!username) {
+      return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
     const userRef = adminDb.collection('users').doc(username.toLowerCase());
@@ -108,13 +104,29 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const newHash = hashPassword(newPassword);
-    await userRef.update({ passwordHash: newHash });
+    const updates: Record<string, unknown> = {};
 
-    return NextResponse.json({ success: true, message: `Password for ${username} has been reset.` });
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+      }
+      updates.passwordHash = hashPassword(newPassword);
+    }
+
+    if (teamId !== undefined) {
+      updates.teamId = teamId || null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
+
+    await userRef.update(updates);
+
+    return NextResponse.json({ success: true, message: `User ${username} updated successfully.` });
   } catch (error) {
-    console.error('Reset password error:', error);
-    return NextResponse.json({ error: 'Failed to reset password' }, { status: 500 });
+    console.error('Update user error:', error);
+    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
   }
 }
 
