@@ -50,14 +50,23 @@ export async function GET(req: NextRequest) {
       return (snap.data() as { playerIds?: string[] } | undefined)?.playerIds ?? [];
     })();
 
-    // 3. Fetch Squad (for this team/user)
+    // 3. Fetch Squad (for this team/user) — full doc: ids + purse + prices + custom
     const squadPromise = (async () => {
       const snap = await adminDb.collection('squads').doc(teamKey).get();
-      return (snap.data() as { playerIds?: string[] } | undefined)?.playerIds ?? [];
+      const d = snap.data() as Record<string, unknown> | undefined;
+      return {
+        playerIds: Array.isArray(d?.playerIds) ? (d!.playerIds as string[]) : [],
+        purse: typeof d?.purse === 'number' ? (d!.purse as number) : 200000,
+        prices:
+          d?.prices && typeof d.prices === 'object'
+            ? (d.prices as Record<string, number>)
+            : {},
+        customPlayers: Array.isArray(d?.customPlayers) ? d!.customPlayers : [],
+      };
     })();
 
     // Run all 3 queries in parallel on the server
-    const [players, wishlist, squad] = await Promise.all([
+    const [players, wishlist, squadData] = await Promise.all([
       playersPromise,
       wishlistPromise,
       squadPromise,
@@ -67,7 +76,13 @@ export async function GET(req: NextRequest) {
       success: true,
       players,
       wishlist,
-      squad,
+      // `squad` stays an id array (Directory page relies on this shape)
+      squad: squadData.playerIds,
+      squadMeta: {
+        purse: squadData.purse,
+        prices: squadData.prices,
+        customPlayers: squadData.customPlayers,
+      },
       user: {
         username: session.username,
         role: session.role,

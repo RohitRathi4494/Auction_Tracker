@@ -88,6 +88,19 @@ export interface Player {
   createdAt?: string;
 }
 
+export interface SquadCustomPlayer {
+  id: string;      // e.g. custom-<uuid>
+  name: string;
+  price: number;
+}
+
+export interface SquadData {
+  playerIds: string[];
+  purse: number;
+  prices: Record<string, number>;   // playerId -> price paid
+  customPlayers: SquadCustomPlayer[];
+}
+
 export interface PlayerStats {
   battingAvg: number;
   strikeRate: number;
