@@ -7,7 +7,7 @@ import PlayerCard from '@/components/PlayerCard';
 import PlayerModal from '@/components/PlayerModal';
 import {
   Search, Filter, X, Trophy, BarChart3, Users, Heart,
-  Database, UserCog, LogOut, Shield, KeyRound
+  Database, UserCog, LogOut, Shield, KeyRound, ShieldCheck
 } from 'lucide-react';
 
 import { deriveTier, deriveAgeBracket } from '@/lib/import';
@@ -42,6 +42,10 @@ export default function DirectoryPage() {
   // Wishlist state
   const [wishlist, setWishlist] = useState<Set<string>>(new Set());
   const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  // Squad state
+  const [squad, setSquad] = useState<Set<string>>(new Set());
+  const [squadLoading, setSquadLoading] = useState(false);
 
   // Session info
   const [userRole, setUserRole] = useState<'admin' | 'owner' | null>(null);
@@ -80,6 +84,21 @@ export default function DirectoryPage() {
       }
     };
     loadWishlist();
+  }, []);
+
+  // Load squad
+  useEffect(() => {
+    const loadSquad = async () => {
+      try {
+        const res = await fetch('/api/squad');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success) setSquad(new Set(data.playerIds));
+      } catch (e) {
+        console.error('Failed to load squad:', e);
+      }
+    };
+    loadSquad();
   }, []);
 
   // Detect role from session cookie (parsed from JWT via a quick API call)
@@ -129,6 +148,38 @@ export default function DirectoryPage() {
       setWishlistLoading(false);
     }
   }, [wishlistLoading]);
+
+  const toggleSquad = useCallback(async (e: React.MouseEvent, playerId: string) => {
+    e.stopPropagation();
+    if (squadLoading) return;
+    setSquadLoading(true);
+    // Optimistic update
+    setSquad((prev) => {
+      const next = new Set(prev);
+      if (next.has(playerId)) next.delete(playerId);
+      else next.add(playerId);
+      return next;
+    });
+    try {
+      const res = await fetch('/api/squad', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId }),
+      });
+      const data = await res.json();
+      if (data.success) setSquad(new Set(data.playerIds));
+    } catch {
+      // Revert
+      setSquad((prev) => {
+        const next = new Set(prev);
+        if (next.has(playerId)) next.delete(playerId);
+        else next.add(playerId);
+        return next;
+      });
+    } finally {
+      setSquadLoading(false);
+    }
+  }, [squadLoading]);
 
   const handleLogout = async () => {
     await fetch('/api/auth', { method: 'DELETE' });
@@ -192,6 +243,18 @@ export default function DirectoryPage() {
                 </span>
               )}
             </button>
+            <a
+              href="/squad"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors font-medium"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              My Squad
+              {squad.size > 0 && (
+                <span className="bg-emerald-600 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                  {squad.size}
+                </span>
+              )}
+            </a>
           </nav>
 
           {/* Admin actions */}
@@ -387,6 +450,8 @@ export default function DirectoryPage() {
                 onClick={() => setSelectedPlayer(player)}
                 wishlisted={wishlist.has(player.id)}
                 onWishlist={(e) => toggleWishlist(e, player.id)}
+                inSquad={squad.has(player.id)}
+                onSquad={(e) => toggleSquad(e, player.id)}
               />
             ))}
           </div>

@@ -16,10 +16,12 @@ export default async function proxy(req: NextRequest) {
   const isOwnerRoute =
     pathname.startsWith('/directory') ||
     pathname.startsWith('/wishlist') ||
+    pathname.startsWith('/squad') ||
     pathname.startsWith('/teams') ||
     pathname.startsWith('/api/players') ||
     pathname.startsWith('/api/teams') ||
     pathname.startsWith('/api/wishlist') ||
+    pathname.startsWith('/api/squad') ||
     pathname.startsWith('/api/scrape');
 
   // Root redirect → directory for all logged-in users

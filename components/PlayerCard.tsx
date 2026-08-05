@@ -1,13 +1,15 @@
 'use client';
 import { Player } from '@/types';
 import { formatCurrency } from '@/lib/rules';
-import { Trophy, Star, User, Zap, Heart, Wind, RefreshCw } from 'lucide-react';
+import { Trophy, Star, User, Zap, Heart, Wind, RefreshCw, ShieldPlus, ShieldCheck } from 'lucide-react';
 
 interface Props {
   player: Player;
   onClick: () => void;
   wishlisted?: boolean;
   onWishlist?: (e: React.MouseEvent) => void;
+  inSquad?: boolean;
+  onSquad?: (e: React.MouseEvent) => void;
 }
 
 const roleColors: Record<string, string> = {
@@ -56,7 +58,7 @@ function getBowlingLabel(styles: string[] | undefined): string | null {
   return raw.length > 20 ? raw.substring(0, 18) + '…' : raw;
 }
 
-export default function PlayerCard({ player, onClick, wishlisted = false, onWishlist }: Props) {
+export default function PlayerCard({ player, onClick, wishlisted = false, onWishlist, inSquad = false, onSquad }: Props) {
   const roleStyle = roleColors[player.playingAs] ?? 'text-zinc-300 bg-zinc-300/10 border-zinc-300/30';
   const statusStyle = statusStyles[player.status] ?? statusStyles.available;
   const bowlingLabel = getBowlingLabel(player.bowlingStyles);
@@ -84,6 +86,18 @@ export default function PlayerCard({ player, onClick, wishlisted = false, onWish
             <p className="text-xs text-zinc-500 mt-0.5">{player.age.toFixed(1)} yrs • {player.battingStyle || '—'}</p>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Squad button */}
+            {onSquad && (
+              <button
+                onClick={onSquad}
+                title={inSquad ? 'Remove from squad' : 'Add to squad'}
+                className={`p-1 rounded-lg transition-all ${inSquad ? 'text-emerald-400 bg-emerald-500/20' : 'text-zinc-600 hover:text-emerald-400 hover:bg-emerald-500/10'}`}
+              >
+                {inSquad
+                  ? <ShieldCheck className="w-3.5 h-3.5" />
+                  : <ShieldPlus className="w-3.5 h-3.5" />}
+              </button>
+            )}
             {/* Wishlist button */}
             {onWishlist && (
               <button
