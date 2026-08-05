@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { adminDb } from '@/lib/firebase/admin';
 import { mapRowToPlayer, mapRowToTeam } from '@/lib/import';
+import { clearPlayersCache } from '@/app/api/init/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,6 +96,7 @@ export async function POST(req: NextRequest) {
       results.teamsImported = count;
     }
 
+    clearPlayersCache();
     return NextResponse.json({ success: true, ...results });
   } catch (err) {
     console.error('Import error:', err);

@@ -59,19 +59,31 @@ export default function SquadPage() {
   const [removing, setRemoving] = useState<string | null>(null);
 
   useEffect(() => {
+    // 1. Instant hydration from client session cache if available
+    try {
+      const cached = sessionStorage.getItem('sccl_init_data');
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (data.players?.length) setAllPlayers(data.players.map(normalizePlayer));
+        if (data.squad) setSquadIds(new Set(data.squad));
+        if (data.wishlist) setWishlistIds(new Set(data.wishlist));
+        setLoading(false);
+      }
+    } catch { /* ignore */ }
+
+    // 2. Fetch fresh data in single /api/init call
     const init = async () => {
       try {
-        const [pRes, sRes, wRes] = await Promise.all([
-          fetch('/api/players'),
-          fetch('/api/squad'),
-          fetch('/api/wishlist'),
-        ]);
-        const [pData, sData, wData] = await Promise.all([pRes.json(), sRes.json(), wRes.json()]);
-        if (pData.success) setAllPlayers(pData.players.map(normalizePlayer));
-        if (sData.success) setSquadIds(new Set(sData.playerIds));
-        if (wData.success) setWishlistIds(new Set(wData.playerIds));
+        const res = await fetch('/api/init');
+        const data = await res.json();
+        if (data.success) {
+          if (data.players?.length) setAllPlayers(data.players.map(normalizePlayer));
+          if (data.squad) setSquadIds(new Set(data.squad));
+          if (data.wishlist) setWishlistIds(new Set(data.wishlist));
+          sessionStorage.setItem('sccl_init_data', JSON.stringify(data));
+        }
       } catch (e) {
-        console.error(e);
+        console.error('Squad init error:', e);
       } finally {
         setLoading(false);
       }

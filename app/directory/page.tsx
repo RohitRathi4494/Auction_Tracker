@@ -51,68 +51,40 @@ export default function DirectoryPage() {
   const [userRole, setUserRole] = useState<'admin' | 'owner' | null>(null);
 
   useEffect(() => {
-    const load = async () => {
+    // Instant hydration from client session cache if available
+    try {
+      const cached = sessionStorage.getItem('sccl_init_data');
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (data.players?.length) setPlayers(data.players.map(normalizePlayer));
+        if (data.wishlist) setWishlist(new Set(data.wishlist));
+        if (data.squad) setSquad(new Set(data.squad));
+        if (data.user?.role) setUserRole(data.user.role);
+        setLoading(false);
+      }
+    } catch { /* ignore */ }
+
+    // Single unified API fetch (parallelized on server with in-memory caching)
+    const loadInit = async () => {
       try {
-        const res = await fetch('/api/players');
+        const res = await fetch('/api/init');
         const data = await res.json();
-        if (data.success && data.players?.length > 0) {
-          setPlayers(data.players.map(normalizePlayer));
-          return;
+        if (data.success) {
+          if (data.players?.length) setPlayers(data.players.map(normalizePlayer));
+          if (data.wishlist) setWishlist(new Set(data.wishlist));
+          if (data.squad) setSquad(new Set(data.squad));
+          if (data.user?.role) setUserRole(data.user.role);
+
+          // Cache for instant navigation across tabs/pages
+          sessionStorage.setItem('sccl_init_data', JSON.stringify(data));
         }
-        const snap = await getDocs(query(collection(db, 'players'), orderBy('fullName')));
-        const loaded = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Player));
-        setPlayers(loaded.map(normalizePlayer));
       } catch (e) {
-        console.error('Failed to load players:', e);
+        console.error('Failed to load init data:', e);
       } finally {
         setLoading(false);
       }
     };
-    load();
-  }, []);
-
-  // Load wishlist
-  useEffect(() => {
-    const loadWishlist = async () => {
-      try {
-        const res = await fetch('/api/wishlist');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.success) setWishlist(new Set(data.playerIds));
-      } catch (e) {
-        console.error('Failed to load wishlist:', e);
-      }
-    };
-    loadWishlist();
-  }, []);
-
-  // Load squad
-  useEffect(() => {
-    const loadSquad = async () => {
-      try {
-        const res = await fetch('/api/squad');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.success) setSquad(new Set(data.playerIds));
-      } catch (e) {
-        console.error('Failed to load squad:', e);
-      }
-    };
-    loadSquad();
-  }, []);
-
-  // Detect role from session cookie (parsed from JWT via a quick API call)
-  useEffect(() => {
-    const detectRole = async () => {
-      try {
-        const res = await fetch('/api/auth/me');
-        if (res.ok) {
-          const data = await res.json();
-          setUserRole(data.role);
-        }
-      } catch { /* ignore */ }
-    };
-    detectRole();
+    loadInit();
   }, []);
 
   const toggleWishlist = useCallback(async (e: React.MouseEvent, playerId: string) => {
