@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Upload, CheckCircle, AlertCircle, Database, Loader2 } from 'lucide-react';
+import { Upload, CheckCircle, AlertCircle, Database, Loader2, ArrowLeft, UserCog } from 'lucide-react';
 
 export default function ImportPage() {
   const [playersFile, setPlayersFile] = useState<File | null>(null);
@@ -31,6 +31,22 @@ export default function ImportPage() {
   return (
     <div className="min-h-screen bg-[oklch(0.12_0.01_250)] flex items-center justify-center p-6">
       <div className="w-full max-w-lg">
+        {/* Navigation row */}
+        <div className="flex items-center justify-between mb-6">
+          <a
+            href="/directory"
+            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-2 rounded-xl transition-all"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Directory
+          </a>
+          <a
+            href="/admin/users"
+            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 border border-white/10 hover:border-blue-500/30 px-3 py-2 rounded-xl transition-all"
+          >
+            <UserCog className="w-3.5 h-3.5" /> Manage Users
+          </a>
+        </div>
+
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
             <Database className="w-5 h-5 text-white" />

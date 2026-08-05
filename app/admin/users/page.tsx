@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { Team, User } from '@/types';
-import { Users, UserPlus, Trash2, Loader2, AlertCircle, Shield, CheckCircle } from 'lucide-react';
+import { Users, UserPlus, Trash2, Loader2, AlertCircle, Shield, CheckCircle, ArrowLeft, Database } from 'lucide-react';
 
 export default function UsersAdminPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -101,6 +101,26 @@ export default function UsersAdminPage() {
     <div className="min-h-screen bg-[oklch(0.12_0.01_250)] p-6">
       <div className="max-w-4xl mx-auto space-y-8">
         
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <a
+              href="/directory"
+              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-2 rounded-xl transition-all"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to Directory
+            </a>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="/admin/import"
+              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 px-3 py-2 rounded-xl transition-all"
+            >
+              <Database className="w-3.5 h-3.5" /> Import Data
+            </a>
+          </div>
+        </div>
+
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
             <Users className="w-5 h-5 text-blue-400" />
