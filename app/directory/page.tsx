@@ -7,10 +7,11 @@ import PlayerCard from '@/components/PlayerCard';
 import PlayerModal from '@/components/PlayerModal';
 import {
   Search, Filter, X, Trophy, BarChart3, Users, Heart,
-  Database, UserCog, LogOut, Shield
+  Database, UserCog, LogOut, Shield, KeyRound
 } from 'lucide-react';
 
 import { deriveTier, deriveAgeBracket } from '@/lib/import';
+import ChangePasswordModal from '@/components/ChangePasswordModal';
 
 const ROLES = [
   'Batsman', 'Batting Allrounder', 'Spin Bowling Allrounder', 'Fast Bowling Allrounder',
@@ -36,6 +37,7 @@ export default function DirectoryPage() {
   const [showWishlistOnly, setShowWishlistOnly] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   // Wishlist state
   const [wishlist, setWishlist] = useState<Set<string>>(new Set());
@@ -204,6 +206,14 @@ export default function DirectoryPage() {
                 </a>
               </>
             )}
+            <button
+              onClick={() => setShowChangePassword(true)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors"
+              title="Change Password"
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Change PW</span>
+            </button>
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
@@ -385,6 +395,10 @@ export default function DirectoryPage() {
 
       {selectedPlayer && (
         <PlayerModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />
+      )}
+
+      {showChangePassword && (
+        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
       )}
     </div>
   );

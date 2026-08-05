@@ -87,3 +87,34 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
   }
 }
+
+// PATCH — admin resets a user's password
+export async function PATCH(req: NextRequest) {
+  try {
+    const { username, newPassword } = await req.json();
+
+    if (!username || !newPassword) {
+      return NextResponse.json({ error: 'Username and new password are required' }, { status: 400 });
+    }
+
+    if (newPassword.length < 6) {
+      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+    }
+
+    const userRef = adminDb.collection('users').doc(username.toLowerCase());
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const newHash = hashPassword(newPassword);
+    await userRef.update({ passwordHash: newHash });
+
+    return NextResponse.json({ success: true, message: `Password for ${username} has been reset.` });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return NextResponse.json({ error: 'Failed to reset password' }, { status: 500 });
+  }
+}
+
