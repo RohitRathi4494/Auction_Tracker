@@ -1,11 +1,13 @@
 'use client';
 import { Player } from '@/types';
 import { formatCurrency } from '@/lib/rules';
-import { Trophy, Shield, Star, User, Zap } from 'lucide-react';
+import { Trophy, Star, User, Zap, Heart, Wind, RefreshCw } from 'lucide-react';
 
 interface Props {
   player: Player;
   onClick: () => void;
+  wishlisted?: boolean;
+  onWishlist?: (e: React.MouseEvent) => void;
 }
 
 const roleColors: Record<string, string> = {
@@ -27,9 +29,37 @@ const statusStyles: Record<string, string> = {
   in_auction: 'bg-amber-500/20 text-amber-400 border-amber-500/40 animate-pulse',
 };
 
-export default function PlayerCard({ player, onClick }: Props) {
+/**
+ * Derives a short, human-readable bowling style label from the bowlingStyles array.
+ * e.g. ["Right Arm Fast"] → "RA Fast"
+ *      ["Left Arm Spin"]  → "LA Spin"
+ */
+function getBowlingLabel(styles: string[] | undefined): string | null {
+  if (!styles || styles.length === 0) return null;
+  const raw = styles[0].trim();
+  if (!raw) return null;
+
+  const lower = raw.toLowerCase();
+  const hand = lower.includes('left') ? 'LA' : lower.includes('right') ? 'RA' : '';
+
+  let type = '';
+  if (lower.includes('fast') || lower.includes('pace')) type = 'Fast';
+  else if (lower.includes('medium')) type = 'Medium';
+  else if (lower.includes('spin') || lower.includes('off') || lower.includes('leg')) {
+    if (lower.includes('leg')) type = 'Leg Spin';
+    else if (lower.includes('off')) type = 'Off Spin';
+    else type = 'Spin';
+  }
+
+  if (hand && type) return `${hand} ${type}`;
+  if (hand) return `${hand} Arm`;
+  return raw.length > 20 ? raw.substring(0, 18) + '…' : raw;
+}
+
+export default function PlayerCard({ player, onClick, wishlisted = false, onWishlist }: Props) {
   const roleStyle = roleColors[player.playingAs] ?? 'text-zinc-300 bg-zinc-300/10 border-zinc-300/30';
   const statusStyle = statusStyles[player.status] ?? statusStyles.available;
+  const bowlingLabel = getBowlingLabel(player.bowlingStyles);
 
   return (
     <button
@@ -46,30 +76,50 @@ export default function PlayerCard({ player, onClick }: Props) {
 
       <div className="p-4 relative z-10">
         {/* Header */}
-        <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-white text-sm leading-tight truncate group-hover:text-blue-200 transition-colors">
               {player.fullName}
             </h3>
-            <p className="text-xs text-zinc-500 mt-0.5">{player.age.toFixed(1)} yrs • {player.battingStyle}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">{player.age.toFixed(1)} yrs • {player.battingStyle || '—'}</p>
           </div>
-          {/* Category A badge */}
-          {player.tier === 'A' && (
-            <span className="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
-              <Trophy className="w-2.5 h-2.5" />A
-            </span>
-          )}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Wishlist button */}
+            {onWishlist && (
+              <button
+                onClick={onWishlist}
+                title={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                className={`p-1 rounded-lg transition-all ${wishlisted ? 'text-rose-400 bg-rose-500/20' : 'text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10'}`}
+              >
+                <Heart className={`w-3.5 h-3.5 ${wishlisted ? 'fill-current' : ''}`} />
+              </button>
+            )}
+            {/* Category A badge */}
+            {player.tier === 'A' && (
+              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                <Trophy className="w-2.5 h-2.5" />A
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Role badge */}
-        <div className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-lg border mb-3 ${roleStyle}`}>
+        <div className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-lg border mb-2 ${roleStyle}`}>
           <Zap className="w-2.5 h-2.5" />
           {player.playingAs}
         </div>
 
+        {/* Bowling hand label */}
+        {bowlingLabel && (
+          <div className="flex items-center gap-1 text-[10px] text-zinc-400 mb-2">
+            <Wind className="w-2.5 h-2.5 text-zinc-500" />
+            <span>{bowlingLabel}</span>
+          </div>
+        )}
+
         {/* Stats row */}
         {(player.battingAvg || player.careerWickets) && (
-          <div className="flex gap-3 mb-3 text-[11px]">
+          <div className="flex gap-3 mb-2 text-[11px]">
             {player.battingAvg && (
               <div className="flex flex-col">
                 <span className="text-zinc-500">Avg</span>
@@ -104,7 +154,7 @@ export default function PlayerCard({ player, onClick }: Props) {
           </span>
           <div className="flex items-center gap-1.5">
             {player.isLegend && <span title="Legend"><Star className="w-3 h-3 text-amber-400" /></span>}
-            {player.isOwner && <span title="Owner"><Shield className="w-3 h-3 text-blue-400" /></span>}
+            {player.isOwner && <span title="Owner"><RefreshCw className="w-3 h-3 text-blue-400" /></span>}
             {player.isRetained && <span title="Retained"><User className="w-3 h-3 text-emerald-400" /></span>}
             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${statusStyle}`}>
               {player.status === 'sold' && player.soldToTeamName

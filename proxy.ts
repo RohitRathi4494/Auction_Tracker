@@ -7,27 +7,32 @@ export default async function proxy(req: NextRequest) {
 
   // 1. Define route categories
   const isPublicRoute = pathname === '/login' || pathname.startsWith('/api/auth');
-  const isAdminRoute = 
-    pathname.startsWith('/auction') || 
-    pathname.startsWith('/admin') || 
+  const isAdminRoute =
+    pathname.startsWith('/admin') ||
     pathname.startsWith('/api/admin') ||
-    pathname.startsWith('/api/auction') ||
     pathname.startsWith('/api/import') ||
     pathname.startsWith('/api/export');
-  
-  // Note: /api/scrape can be considered internal/admin but let's allow any logged in user if needed, 
-  // or just treat it as admin only. Since directory uses it, let's treat it as Owner+.
-  const isOwnerRoute = 
-    pathname.startsWith('/directory') || 
-    pathname.startsWith('/teams') || 
+
+  const isOwnerRoute =
+    pathname.startsWith('/directory') ||
+    pathname.startsWith('/wishlist') ||
+    pathname.startsWith('/teams') ||
+    pathname.startsWith('/api/players') ||
+    pathname.startsWith('/api/teams') ||
+    pathname.startsWith('/api/wishlist') ||
     pathname.startsWith('/api/scrape');
 
-  // Root redirect
+  // Root redirect → directory for all logged-in users
   if (pathname === '/') {
     return NextResponse.redirect(new URL('/directory', req.url));
   }
 
-  // If the route doesn't match our protected list, just let it pass (e.g. static assets)
+  // Old auction routes → redirect to directory
+  if (pathname.startsWith('/auction') || pathname.startsWith('/api/auction')) {
+    return NextResponse.redirect(new URL('/directory', req.url));
+  }
+
+  // If the route doesn't match our protected list, just let it pass (static assets etc.)
   if (!isAdminRoute && !isOwnerRoute && !isPublicRoute) {
     return NextResponse.next();
   }
@@ -35,7 +40,6 @@ export default async function proxy(req: NextRequest) {
   // 2. Extract and verify session token
   const token = req.cookies.get('session')?.value;
   let session = null;
-
   if (token) {
     session = await verifySessionToken(token);
   }
@@ -44,9 +48,6 @@ export default async function proxy(req: NextRequest) {
   if (isPublicRoute) {
     // Redirect away from login if already logged in
     if (session && pathname === '/login') {
-      if (session.role === 'admin') {
-        return NextResponse.redirect(new URL('/auction', req.url));
-      }
       return NextResponse.redirect(new URL('/directory', req.url));
     }
     return NextResponse.next();
@@ -54,27 +55,23 @@ export default async function proxy(req: NextRequest) {
 
   // 4. Handle Unauthenticated Requests
   if (!session) {
-    // If it's an API request, return 401
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    // If it's a page request, redirect to login
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  // 5. Handle Authorization (Role Checks)
+  // 5. Handle Authorization (Role Checks — admin-only routes)
   if (isAdminRoute && session.role !== 'admin') {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    return NextResponse.redirect(new URL('/directory', req.url)); // Send owners to directory
+    return NextResponse.redirect(new URL('/directory', req.url));
   }
 
-  // If we reach here, user is authorized
   return NextResponse.next();
 }
 
 export const config = {
-  // Apply middleware to all routes except static files, Next.js internals
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };

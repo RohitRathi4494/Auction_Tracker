@@ -1,11 +1,14 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { Player } from '@/types';
 import PlayerCard from '@/components/PlayerCard';
 import PlayerModal from '@/components/PlayerModal';
-import { Search, Filter, X, Gavel, BarChart3, Users, Trophy } from 'lucide-react';
+import {
+  Search, Filter, X, Trophy, BarChart3, Users, Heart,
+  Database, UserCog, LogOut, Shield
+} from 'lucide-react';
 
 import { deriveTier, deriveAgeBracket } from '@/lib/import';
 
@@ -30,8 +33,16 @@ export default function DirectoryPage() {
   const [filterAge, setFilterAge] = useState<'all' | 'under_35' | 'above_35'>('all');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'sold' | 'unsold'>('all');
+  const [showWishlistOnly, setShowWishlistOnly] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Wishlist state
+  const [wishlist, setWishlist] = useState<Set<string>>(new Set());
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  // Session info
+  const [userRole, setUserRole] = useState<'admin' | 'owner' | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -42,7 +53,6 @@ export default function DirectoryPage() {
           setPlayers(data.players.map(normalizePlayer));
           return;
         }
-        // Fallback to client SDK if API route returns no players
         const snap = await getDocs(query(collection(db, 'players'), orderBy('fullName')));
         const loaded = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Player));
         setPlayers(loaded.map(normalizePlayer));
@@ -55,8 +65,77 @@ export default function DirectoryPage() {
     load();
   }, []);
 
+  // Load wishlist
+  useEffect(() => {
+    const loadWishlist = async () => {
+      try {
+        const res = await fetch('/api/wishlist');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success) setWishlist(new Set(data.playerIds));
+      } catch (e) {
+        console.error('Failed to load wishlist:', e);
+      }
+    };
+    loadWishlist();
+  }, []);
+
+  // Detect role from session cookie (parsed from JWT via a quick API call)
+  useEffect(() => {
+    const detectRole = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          setUserRole(data.role);
+        }
+      } catch { /* ignore */ }
+    };
+    detectRole();
+  }, []);
+
+  const toggleWishlist = useCallback(async (e: React.MouseEvent, playerId: string) => {
+    e.stopPropagation();
+    if (wishlistLoading) return;
+    setWishlistLoading(true);
+
+    // Optimistic update
+    setWishlist((prev) => {
+      const next = new Set(prev);
+      if (next.has(playerId)) next.delete(playerId);
+      else next.add(playerId);
+      return next;
+    });
+
+    try {
+      const res = await fetch('/api/wishlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId }),
+      });
+      const data = await res.json();
+      if (data.success) setWishlist(new Set(data.playerIds));
+    } catch {
+      // Revert optimistic update on error
+      setWishlist((prev) => {
+        const next = new Set(prev);
+        if (next.has(playerId)) next.delete(playerId);
+        else next.add(playerId);
+        return next;
+      });
+    } finally {
+      setWishlistLoading(false);
+    }
+  }, [wishlistLoading]);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth', { method: 'DELETE' });
+    window.location.href = '/login';
+  };
+
   const filtered = useMemo(() => {
     return players.filter((p) => {
+      if (showWishlistOnly && !wishlist.has(p.id)) return false;
       if (search && !p.fullName.toLowerCase().includes(search.toLowerCase())) return false;
       if (filterTier !== 'all' && p.tier !== filterTier) return false;
       if (filterAge !== 'all' && p.ageBracket !== filterAge) return false;
@@ -64,7 +143,7 @@ export default function DirectoryPage() {
       if (filterStatus !== 'all' && p.status !== filterStatus) return false;
       return true;
     });
-  }, [players, search, filterTier, filterAge, filterRole, filterStatus]);
+  }, [players, search, filterTier, filterAge, filterRole, filterStatus, showWishlistOnly, wishlist]);
 
   const stats = useMemo(() => ({
     total: players.length,
@@ -73,45 +152,75 @@ export default function DirectoryPage() {
     catA: players.filter((p) => p.tier === 'A').length,
   }), [players]);
 
-  const activeFilters = [filterTier !== 'all', filterAge !== 'all', filterRole !== 'all', filterStatus !== 'all'].filter(Boolean).length;
+  const activeFilters = [
+    filterTier !== 'all', filterAge !== 'all', filterRole !== 'all',
+    filterStatus !== 'all', showWishlistOnly,
+  ].filter(Boolean).length;
 
   return (
     <div className="min-h-screen bg-[oklch(0.12_0.01_250)]">
       {/* Top navigation */}
       <header className="sticky top-0 z-40 border-b border-white/8 bg-[oklch(0.12_0.01_250)]/95 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          {/* Logo */}
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
-              <Gavel className="w-4 h-4 text-white" />
+              <Trophy className="w-4 h-4 text-white" />
             </div>
             <div>
               <h1 className="text-sm font-bold text-white leading-none">SCCL Season 6</h1>
               <p className="text-[10px] text-zinc-500 leading-none mt-0.5">Player Directory</p>
             </div>
           </div>
-          <nav className="flex items-center gap-1 ml-4">
-            <a href="/directory" className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-300 font-medium">Directory</a>
-            <div className="h-4 w-px bg-white/10 mx-2" />
-            <a href="/auction" className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-amber-400 hover:bg-amber-500/10 transition-colors">
-              <Gavel className="w-3.5 h-3.5" /> Auction Console
+
+          {/* Nav */}
+          <nav className="flex items-center gap-1">
+            <a href="/directory" className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-300 font-medium">
+              Directory
             </a>
-            <a href="/admin/import" className="text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors">
-              Import Data
-            </a>
-            <a href="/admin/users" className="text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
-              Manage Users
-            </a>
+            <button
+              onClick={() => setShowWishlistOnly(!showWishlistOnly)}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors font-medium ${showWishlistOnly ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10'}`}
+            >
+              <Heart className={`w-3.5 h-3.5 ${showWishlistOnly ? 'fill-current' : ''}`} />
+              Wishlist
+              {wishlist.size > 0 && (
+                <span className="bg-rose-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                  {wishlist.size}
+                </span>
+              )}
+            </button>
           </nav>
+
+          {/* Admin actions */}
+          <div className="flex items-center gap-2">
+            {userRole === 'admin' && (
+              <>
+                <a href="/admin/import" className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+                  <Database className="w-3.5 h-3.5" /> Import
+                </a>
+                <a href="/admin/users" className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
+                  <UserCog className="w-3.5 h-3.5" /> Users
+                </a>
+              </>
+            )}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" /> Logout
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Stats bar */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {[
             { icon: Users, label: 'Total', value: stats.total, color: 'text-blue-400' },
             { icon: BarChart3, label: 'Available', value: stats.available, color: 'text-emerald-400' },
-            { icon: Gavel, label: 'Sold', value: stats.sold, color: 'text-rose-400' },
+            { icon: Shield, label: 'Sold', value: stats.sold, color: 'text-rose-400' },
             { icon: Trophy, label: 'Category A', value: stats.catA, color: 'text-amber-400' },
           ].map(({ icon: Icon, label, value, color }) => (
             <div key={label} className="bg-white/4 rounded-2xl border border-white/8 p-4 flex items-center gap-3">
@@ -123,6 +232,19 @@ export default function DirectoryPage() {
             </div>
           ))}
         </div>
+
+        {/* Wishlist banner */}
+        {showWishlistOnly && (
+          <div className="flex items-center justify-between bg-rose-500/10 border border-rose-500/25 rounded-2xl px-4 py-3 mb-4">
+            <div className="flex items-center gap-2 text-rose-300 text-sm font-medium">
+              <Heart className="w-4 h-4 fill-current" />
+              Showing your wishlist — {wishlist.size} player{wishlist.size !== 1 ? 's' : ''} shortlisted
+            </div>
+            <button onClick={() => setShowWishlistOnly(false)} className="text-xs text-zinc-400 hover:text-white">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Search + filter bar */}
         <div className="flex gap-2 mb-4">
@@ -156,7 +278,6 @@ export default function DirectoryPage() {
         {/* Filter panel */}
         {showFilters && (
           <div className="bg-white/4 border border-white/8 rounded-2xl p-4 mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-            {/* Tier filter */}
             <div>
               <label className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">Category</label>
               <div className="flex gap-1.5">
@@ -169,7 +290,6 @@ export default function DirectoryPage() {
               </div>
             </div>
 
-            {/* Age bracket filter */}
             <div>
               <label className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">Age</label>
               <div className="flex gap-1.5">
@@ -182,7 +302,6 @@ export default function DirectoryPage() {
               </div>
             </div>
 
-            {/* Status filter */}
             <div>
               <label className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">Status</label>
               <select
@@ -197,7 +316,6 @@ export default function DirectoryPage() {
               </select>
             </div>
 
-            {/* Role filter */}
             <div>
               <label className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">Role</label>
               <select
@@ -219,7 +337,7 @@ export default function DirectoryPage() {
           </p>
           {(activeFilters > 0 || search) && (
             <button
-              onClick={() => { setSearch(''); setFilterTier('all'); setFilterAge('all'); setFilterRole('all'); setFilterStatus('all'); }}
+              onClick={() => { setSearch(''); setFilterTier('all'); setFilterAge('all'); setFilterRole('all'); setFilterStatus('all'); setShowWishlistOnly(false); }}
               className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1"
             >
               <X className="w-3 h-3" /> Clear all
@@ -236,14 +354,30 @@ export default function DirectoryPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-24 text-zinc-600">
-            <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p className="text-lg font-medium">No players found</p>
-            <p className="text-sm mt-1">Try adjusting your filters</p>
+            {showWishlistOnly ? (
+              <>
+                <Heart className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-lg font-medium">Your wishlist is empty</p>
+                <p className="text-sm mt-1">Click the heart icon on any player card to add them</p>
+              </>
+            ) : (
+              <>
+                <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-lg font-medium">No players found</p>
+                <p className="text-sm mt-1">Try adjusting your filters</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {filtered.map((player) => (
-              <PlayerCard key={player.id} player={player} onClick={() => setSelectedPlayer(player)} />
+              <PlayerCard
+                key={player.id}
+                player={player}
+                onClick={() => setSelectedPlayer(player)}
+                wishlisted={wishlist.has(player.id)}
+                onWishlist={(e) => toggleWishlist(e, player.id)}
+              />
             ))}
           </div>
         )}

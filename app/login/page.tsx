@@ -25,14 +25,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        // Redirect based on role
-        if (data.role === 'admin') {
-          router.push('/auction');
-        } else {
-          // If they have a specific team, maybe go to their team page, 
-          // or just directory. Let's do directory for everyone.
-          router.push('/directory');
-        }
+        router.push('/directory');
       } else {
         setError(data.error || 'Invalid credentials');
       }
