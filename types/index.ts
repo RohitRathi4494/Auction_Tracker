@@ -88,6 +88,22 @@ export interface Player {
   createdAt?: string;
 }
 
+// Lightweight snapshot of a player stored in the wishlist, so a wishlisted
+// player survives even if they are later removed/renamed in the directory.
+export interface WishlistSnapshot {
+  id: string;
+  fullName: string;
+  phone?: string;
+  playingAs?: string;
+  tier?: Tier;
+  ageBracket?: AgeBracket;
+  age?: number;
+  basePrice?: number;
+  rawCategory?: string;
+  status?: PlayerStatus;
+  cricHeroesUrl?: string;
+}
+
 export interface SquadCustomPlayer {
   id: string;      // e.g. custom-<uuid>
   name: string;

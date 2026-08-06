@@ -202,10 +202,18 @@ export default function SquadPage() {
   const toggleWishlist = async (e: React.MouseEvent, playerId: string) => {
     e.stopPropagation();
     try {
+      const p = allPlayers.find((pl) => pl.id === playerId);
+      const snapshot = p
+        ? {
+            id: p.id, fullName: p.fullName, phone: p.phone, playingAs: p.playingAs,
+            tier: p.tier, ageBracket: p.ageBracket, age: p.age, basePrice: p.basePrice,
+            rawCategory: p.rawCategory, status: p.status, cricHeroesUrl: p.cricHeroesUrl,
+          }
+        : undefined;
       const res = await fetch('/api/wishlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId }),
+        body: JSON.stringify({ playerId, snapshot }),
       });
       const data = await res.json();
       if (data.success) setWishlistIds(new Set(data.playerIds));

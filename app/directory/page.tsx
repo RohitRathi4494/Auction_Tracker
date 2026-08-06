@@ -1,13 +1,11 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
 import { Player } from '@/types';
 import PlayerCard from '@/components/PlayerCard';
 import PlayerModal from '@/components/PlayerModal';
 import {
   Search, Filter, X, Trophy, BarChart3, Users, Heart,
-  Database, UserCog, LogOut, Shield, KeyRound, ShieldCheck
+  Database, UserCog, LogOut, Shield, KeyRound, ShieldCheck, Download
 } from 'lucide-react';
 
 import { deriveTier, deriveAgeBracket } from '@/lib/import';
@@ -25,6 +23,22 @@ const normalizePlayer = (p: Player): Player => {
   const ageBracket = p.ageBracket || deriveAgeBracket(raw, p.age, record);
   return { ...p, tier, ageBracket };
 };
+
+// Compact player snapshot persisted with the wishlist so an entry survives
+// even if the player is later removed/renamed in the directory.
+const buildSnapshot = (p: Player) => ({
+  id: p.id,
+  fullName: p.fullName,
+  phone: p.phone,
+  playingAs: p.playingAs,
+  tier: p.tier,
+  ageBracket: p.ageBracket,
+  age: p.age,
+  basePrice: p.basePrice,
+  rawCategory: p.rawCategory,
+  status: p.status,
+  cricHeroesUrl: p.cricHeroesUrl,
+});
 
 export default function DirectoryPage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -101,10 +115,11 @@ export default function DirectoryPage() {
     });
 
     try {
+      const player = players.find((p) => p.id === playerId);
       const res = await fetch('/api/wishlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId }),
+        body: JSON.stringify({ playerId, snapshot: player ? buildSnapshot(player) : undefined }),
       });
       const data = await res.json();
       if (data.success) setWishlist(new Set(data.playerIds));
@@ -119,7 +134,7 @@ export default function DirectoryPage() {
     } finally {
       setWishlistLoading(false);
     }
-  }, [wishlistLoading]);
+  }, [wishlistLoading, players]);
 
   const toggleSquad = useCallback(async (e: React.MouseEvent, playerId: string) => {
     e.stopPropagation();
@@ -285,9 +300,20 @@ export default function DirectoryPage() {
               <Heart className="w-4 h-4 fill-current" />
               Showing your wishlist — {wishlist.size} player{wishlist.size !== 1 ? 's' : ''} shortlisted
             </div>
-            <button onClick={() => setShowWishlistOnly(false)} className="text-xs text-zinc-400 hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              {wishlist.size > 0 && (
+                <a
+                  href="/api/wishlist/export"
+                  className="flex items-center gap-1.5 text-xs font-medium text-rose-200 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 px-3 py-1.5 rounded-lg transition-colors"
+                  title="Download your wishlist as Excel"
+                >
+                  <Download className="w-3.5 h-3.5" /> Export Wishlist
+                </a>
+              )}
+              <button onClick={() => setShowWishlistOnly(false)} className="text-xs text-zinc-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
