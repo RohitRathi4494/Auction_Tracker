@@ -7,7 +7,7 @@ import PlayerModal from '@/components/PlayerModal';
 import {
   ArrowLeft, ShieldCheck, ShieldPlus, Trash2, Trophy,
   Users, BarChart3, Wallet, Heart, Loader2,
-  Search, Filter, Plus, Pencil, Check, X, UserPlus, IndianRupee,
+  Search, Filter, Plus, Pencil, Check, X, UserPlus, IndianRupee, Download,
 } from 'lucide-react';
 
 const normalizePlayer = (p: Player): Player => {
@@ -284,6 +284,15 @@ export default function SquadPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {(squadPlayers.length > 0 || customPlayers.length > 0) && (
+              <a
+                href="/api/squad/export"
+                className="flex items-center gap-1.5 text-xs font-medium text-zinc-300 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-2 rounded-xl transition-all"
+                title="Download your squad as Excel"
+              >
+                <Download className="w-3.5 h-3.5" /> Export
+              </a>
+            )}
             {isOwner && (
               <button
                 onClick={() => setShowAddModal(true)}
