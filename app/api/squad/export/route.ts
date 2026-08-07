@@ -80,7 +80,10 @@ export async function GET(req: NextRequest) {
     const customRows = customPlayers.map((c) => ({
       fullName: c.name,
       type: 'Manual',
-      playingAs: '', tier: '', ageBracket: '', age: '',
+      playingAs: '',
+      tier: c.category ?? '',
+      ageBracket: typeof c.age === 'number' ? (c.age < 35 ? 'U35' : '35+') : '',
+      age: typeof c.age === 'number' ? Number(c.age.toFixed(1)) : '',
       price: c.price,
       status: '', inDirectory: 'No', cricHeroesUrl: '',
     }));

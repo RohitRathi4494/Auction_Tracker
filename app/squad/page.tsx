@@ -590,7 +590,12 @@ export default function SquadPage() {
                         Manual
                       </span>
                     </div>
-                    <p className="text-xs text-zinc-600 mt-0.5">Not in directory</p>
+                    <p className="text-xs text-zinc-600 mt-0.5">
+                      {[
+                        cp.age ? `${cp.age}y` : null,
+                        cp.category ? `Cat ${cp.category}` : null,
+                      ].filter(Boolean).join(' • ') || 'Not in directory'}
+                    </p>
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -675,7 +680,7 @@ export default function SquadPage() {
           squadIds={squadIds}
           onClose={() => setShowAddModal(false)}
           onAddDirectory={(playerId, price) => postSquad({ action: 'set_price', playerId, price })}
-          onAddCustom={(name, price) => postSquad({ action: 'add_custom', name, price })}
+          onAddCustom={(name, price, category, age) => postSquad({ action: 'add_custom', name, price, category, age })}
         />
       )}
     </div>
@@ -690,13 +695,15 @@ function AddPlayerModal({
   squadIds: Set<string>;
   onClose: () => void;
   onAddDirectory: (playerId: string, price: number) => Promise<unknown>;
-  onAddCustom: (name: string, price: number) => Promise<unknown>;
+  onAddCustom: (name: string, price: number, category: string, age: string) => Promise<unknown>;
 }) {
   const [tab, setTab] = useState<'directory' | 'custom'>('directory');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Player | null>(null);
   const [price, setPrice] = useState('');
   const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [age, setAge] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -719,7 +726,7 @@ function AddPlayerModal({
         await onAddDirectory(selected.id, val);
       } else {
         if (!name.trim()) { setError('Enter a player name'); setBusy(false); return; }
-        await onAddCustom(name.trim(), val);
+        await onAddCustom(name.trim(), val, category, age);
       }
       onClose();
     } catch (e) {
@@ -795,16 +802,43 @@ function AddPlayerModal({
               </div>
             </>
           ) : (
-            <div>
-              <label className="text-[10px] uppercase tracking-wide text-zinc-500">Player name</label>
-              <input
-                type="text"
-                placeholder="e.g. Rahul Sharma"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500/40"
-              />
-              <p className="mt-1.5 text-[10px] text-zinc-600">For players in your team who aren’t in the directory (e.g. retained).</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] uppercase tracking-wide text-zinc-500">Player name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Rahul Sharma"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500/40"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-zinc-500">Category</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white focus:outline-none focus:border-emerald-500/40"
+                  >
+                    <option value="" className="bg-zinc-900">—</option>
+                    <option value="A" className="bg-zinc-900">Cat A</option>
+                    <option value="B" className="bg-zinc-900">Cat B</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-zinc-500">Age</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="e.g. 32"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500/40"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-zinc-600">For players in your team who aren’t in the directory (e.g. retained). Category &amp; age are optional.</p>
             </div>
           )}
 

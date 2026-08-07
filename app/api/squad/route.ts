@@ -40,6 +40,23 @@ function validPrice(v: unknown): number | null {
   return Math.round(n);
 }
 
+// Normalize a free-form category input into a Tier ('A' | 'B'), or null if empty/invalid.
+function normalizeCategory(v: unknown): 'A' | 'B' | null {
+  const str = String(v ?? '').trim().toUpperCase();
+  if (!str) return null;
+  if (str === 'A' || str.includes('CAT A') || str.endsWith(' A') || str.endsWith('-A')) return 'A';
+  if (str === 'B' || str.includes('CAT B') || str.endsWith(' B') || str.endsWith('-B')) return 'B';
+  return null;
+}
+
+// Validate an age input: a positive finite number, else null.
+function validAge(v: unknown): number | null {
+  if (v === '' || v === null || v === undefined) return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n * 10) / 10;   // keep one decimal place (matches directory ages)
+}
+
 // GET — fetch full squad (ids, purse, prices, custom players)
 export async function GET(req: NextRequest) {
   const session = await getSession(req);
@@ -93,7 +110,12 @@ export async function POST(req: NextRequest) {
       if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 });
       const price = validPrice(body.price);
       if (price === null) return NextResponse.json({ error: 'Invalid price' }, { status: 400 });
-      s.customPlayers.push({ id: `custom-${crypto.randomUUID()}`, name, price });
+      const player: SquadCustomPlayer = { id: `custom-${crypto.randomUUID()}`, name, price };
+      const category = normalizeCategory(body.category);
+      if (category) player.category = category;
+      const age = validAge(body.age);
+      if (age !== null) player.age = age;
+      s.customPlayers.push(player);
       break;
     }
 
@@ -105,6 +127,16 @@ export async function POST(req: NextRequest) {
         const price = validPrice(body.price);
         if (price === null) return NextResponse.json({ error: 'Invalid price' }, { status: 400 });
         cp.price = price;
+      }
+      if (body.category !== undefined) {
+        const category = normalizeCategory(body.category);
+        if (category) cp.category = category;
+        else delete cp.category;
+      }
+      if (body.age !== undefined) {
+        const age = validAge(body.age);
+        if (age !== null) cp.age = age;
+        else delete cp.age;
       }
       break;
     }

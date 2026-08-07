@@ -108,6 +108,8 @@ export interface SquadCustomPlayer {
   id: string;      // e.g. custom-<uuid>
   name: string;
   price: number;
+  category?: Tier;   // 'A' | 'B' — optional, for off-directory players
+  age?: number;      // optional
 }
 
 export interface SquadData {
