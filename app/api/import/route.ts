@@ -6,6 +6,27 @@ import { clearPlayersCache } from '@/app/api/init/route';
 
 export const dynamic = 'force-dynamic';
 
+// Delete every document in a collection, batched to respect Firestore's 500-write limit.
+async function deleteCollectionDocs(collectionName: string) {
+  const snap = await adminDb.collection(collectionName).get();
+  if (snap.empty) return;
+
+  let batch = adminDb.batch();
+  let batchCount = 0;
+  for (const doc of snap.docs) {
+    batch.delete(doc.ref);
+    batchCount++;
+    if (batchCount >= 499) {
+      await batch.commit();
+      batch = adminDb.batch();
+      batchCount = 0;
+    }
+  }
+  if (batchCount > 0) {
+    await batch.commit();
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -25,6 +46,10 @@ export async function POST(req: NextRequest) {
       const ws = wb.Sheets[sheetName];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(ws);
+
+      // Wipe existing players first — a new import fully replaces the roster so
+      // players from a previous file don't linger alongside the new ones.
+      await deleteCollectionDocs('players');
 
       let currentBatch = adminDb.batch();
       let batchCount = 0;
