@@ -7,7 +7,7 @@ import PlayerModal from '@/components/PlayerModal';
 import {
   ArrowLeft, ShieldCheck, ShieldPlus, Trash2, Trophy,
   Users, BarChart3, Wallet, Heart, Loader2,
-  Search, Filter, Plus, Pencil, Check, X, UserPlus, IndianRupee, Download,
+  Search, Filter, Plus, Pencil, Check, X, UserPlus, IndianRupee, Download, Target,
 } from 'lucide-react';
 
 const normalizePlayer = (p: Player): Player => {
@@ -271,6 +271,12 @@ export default function SquadPage() {
               className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-2 rounded-xl transition-all"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Directory
+            </a>
+            <a
+              href="/targets"
+              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-rose-300 bg-white/5 hover:bg-rose-500/10 border border-white/10 px-3 py-2 rounded-xl transition-all"
+            >
+              <Target className="w-3.5 h-3.5" /> Targets
             </a>
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">

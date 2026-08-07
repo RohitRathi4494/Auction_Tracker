@@ -5,7 +5,7 @@ import PlayerCard from '@/components/PlayerCard';
 import PlayerModal from '@/components/PlayerModal';
 import {
   Search, Filter, X, Trophy, BarChart3, Users, Heart,
-  Database, UserCog, LogOut, Shield, KeyRound, ShieldCheck, Download
+  Database, UserCog, LogOut, Shield, KeyRound, ShieldCheck, Download, Target
 } from 'lucide-react';
 
 import { deriveTier, deriveAgeBracket } from '@/lib/import';
@@ -230,6 +230,18 @@ export default function DirectoryPage() {
                 </span>
               )}
             </button>
+            <a
+              href="/targets"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors font-medium"
+            >
+              <Target className="w-3.5 h-3.5" />
+              Targets
+              {wishlist.size > 0 && (
+                <span className="bg-rose-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                  {wishlist.size}
+                </span>
+              )}
+            </a>
             <a
               href="/squad"
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors font-medium"

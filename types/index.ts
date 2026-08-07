@@ -112,6 +112,18 @@ export interface SquadCustomPlayer {
   age?: number;      // optional
 }
 
+// Per-target tracking info stored alongside a wishlisted player.
+// The wishlist doubles as the "Targets" board the owner bids from.
+export type TargetStatus =
+  | 'targeting'   // still chasing this player
+  | 'bought'      // won by me
+  | 'lost';       // sold to another team
+
+export interface TargetMeta {
+  priority?: number;      // numeric rank within category (lower = higher priority)
+  status?: TargetStatus;  // manually tracked outcome
+}
+
 export interface SquadData {
   playerIds: string[];
   purse: number;
