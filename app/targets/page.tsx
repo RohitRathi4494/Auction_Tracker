@@ -49,6 +49,46 @@ const STATUS_STYLES: Record<TargetStatus, string> = {
   lost: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
 };
 
+// Grouping options for the board.
+type GroupBy = 'category' | 'role';
+
+// Colour tones reused for both category and role group pills.
+const TONES: Record<string, string> = {
+  amber: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+  sky: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+  violet: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+  rose: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+  cyan: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+  zinc: 'bg-zinc-500/15 text-zinc-300 border-zinc-500/30',
+};
+
+// Broad role buckets (order = display order).
+const ROLE_ORDER = ['Batsman', 'All-rounder', 'Bowler', 'Wicket-Keeper', 'Other'] as const;
+const ROLE_TONE: Record<string, string> = {
+  Batsman: 'amber',
+  'All-rounder': 'violet',
+  Bowler: 'rose',
+  'Wicket-Keeper': 'cyan',
+  Other: 'zinc',
+};
+
+function roleBucket(playingAs?: string): string {
+  const s = (playingAs ?? '').toLowerCase();
+  if (!s) return 'Other';
+  if (s.includes('keeper')) return 'Wicket-Keeper';
+  if (s.includes('allrounder') || s.includes('all-rounder') || s.includes('all rounder')) return 'All-rounder';
+  if (s.includes('bat')) return 'Batsman';
+  if (s.includes('bowl') || s.includes('pace') || s.includes('spin') || s.includes('fast') || s.includes('medium')) return 'Bowler';
+  return 'Other';
+}
+
+interface Group {
+  key: string;
+  label: string;
+  tone: string;
+  players: TargetEntry[];
+}
+
 // ─── Merged target entry (live player data ⊕ snapshot ⊕ target meta) ──────────
 interface TargetEntry {
   id: string;
@@ -78,6 +118,7 @@ export default function TargetsPage() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [groupBy, setGroupBy] = useState<GroupBy>('category');
 
   const load = useCallback(async () => {
     const [initRes, wlRes] = await Promise.all([
@@ -164,19 +205,35 @@ export default function TargetsPage() {
     }
   }, []);
 
-  // Group by category (Cat A / Cat B), sorted by priority then name within each.
-  const groups = useMemo(() => {
+  // Group by category (Cat A / Cat B) or by role bucket — each group carries its
+  // own priority ordering (sorted by priority, then name).
+  const groups = useMemo<Group[]>(() => {
     const sortFn = (a: TargetEntry, b: TargetEntry) => {
       const pa = a.priority ?? Number.POSITIVE_INFINITY;
       const pb = b.priority ?? Number.POSITIVE_INFINITY;
       if (pa !== pb) return pa - pb;
       return a.fullName.localeCompare(b.fullName);
     };
+
+    if (groupBy === 'role') {
+      return ROLE_ORDER
+        .map((name) => ({
+          key: name,
+          label: name,
+          tone: ROLE_TONE[name],
+          players: entries.filter((e) => roleBucket(e.playingAs) === name).sort(sortFn),
+        }))
+        .filter((g) => g.players.length > 0);
+    }
+
+    // Category — always show both A and B sections.
     return (['A', 'B'] as Tier[]).map((tier) => ({
-      tier,
+      key: tier,
+      label: `Category ${tier}`,
+      tone: tier === 'A' ? 'amber' : 'sky',
       players: entries.filter((e) => e.tier === tier).sort(sortFn),
     }));
-  }, [entries]);
+  }, [entries, groupBy]);
 
   const summary = useMemo(() => ({
     total: entries.length,
@@ -235,6 +292,29 @@ export default function TargetsPage() {
           ))}
         </div>
 
+        {/* Grouping toggle */}
+        {!loading && entries.length > 0 && (
+          <div className="flex items-center gap-2 mb-5">
+            <span className="text-[11px] uppercase tracking-wide text-zinc-600">Group by</span>
+            <div className="inline-flex rounded-xl border border-white/10 bg-white/4 p-0.5">
+              {([
+                { key: 'category' as GroupBy, label: 'Category', icon: Trophy },
+                { key: 'role' as GroupBy, label: 'Role', icon: Zap },
+              ]).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setGroupBy(key)}
+                  className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
+                    groupBy === key ? 'bg-rose-500/20 text-rose-200 border border-rose-500/30' : 'text-zinc-400 hover:text-white border border-transparent'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" /> {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-24 text-zinc-500">
             <Loader2 className="w-6 h-6 animate-spin" />
@@ -251,25 +331,22 @@ export default function TargetsPage() {
           </div>
         ) : (
           <div className="space-y-8">
-            {groups.map(({ tier, players }) => (
-              <section key={tier}>
+            {groups.map((g) => (
+              <section key={g.key}>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${
-                    tier === 'A'
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                      : 'bg-sky-500/15 text-sky-300 border-sky-500/30'
-                  }`}>
-                    <Trophy className="w-3 h-3" /> Category {tier}
+                  <span className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${TONES[g.tone]}`}>
+                    {groupBy === 'category' ? <Trophy className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
+                    {g.label}
                   </span>
-                  <span className="text-xs text-zinc-600">{players.length} player{players.length !== 1 ? 's' : ''}</span>
+                  <span className="text-xs text-zinc-600">{g.players.length} player{g.players.length !== 1 ? 's' : ''}</span>
                   <div className="flex-1 h-px bg-white/8" />
                 </div>
 
-                {players.length === 0 ? (
-                  <p className="text-xs text-zinc-600 py-2">No Category {tier} targets.</p>
+                {g.players.length === 0 ? (
+                  <p className="text-xs text-zinc-600 py-2">No {g.label} targets.</p>
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    {players.map((e) => (
+                    {g.players.map((e) => (
                       <TargetRow
                         key={e.id}
                         entry={e}
